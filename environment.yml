@@ -1,4 +1,4 @@
-name: residual-learning-in-snns-env
+name: res-snn-env
 
 channels:
   - pytorch
@@ -6,5 +6,4 @@ channels:
 
 dependencies:
   - python=3.12
-  - pytorch>=1.5.0
-  - tensorboard
+  - pytorch
