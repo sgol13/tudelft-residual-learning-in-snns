@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
-from spikingjelly.cext.neuron import MultiStepParametricLIFNode
-from spikingjelly.clock_driven import layer
+from spikingjelly.activation_based.neuron import ParametricLIFNode
+from spikingjelly.activation_based import layer
+
 
 def conv3x3(in_channels, out_channels):
     return nn.Sequential(
@@ -9,8 +10,9 @@ def conv3x3(in_channels, out_channels):
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=1, bias=False),
             nn.BatchNorm2d(out_channels),
         ),
-        MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True)
+        ParametricLIFNode(init_tau=2.0, detach_reset=True, step_mode='m')
     )
+
 
 def conv1x1(in_channels, out_channels):
     return nn.Sequential(
@@ -18,8 +20,9 @@ def conv1x1(in_channels, out_channels):
             nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, bias=False),
             nn.BatchNorm2d(out_channels),
         ),
-        MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True)
+        ParametricLIFNode(init_tau=2.0, detach_reset=True, step_mode='m')
     )
+
 
 class SEWBlock(nn.Module):
     def __init__(self, in_channels, mid_channels, connect_f=None):
@@ -43,6 +46,7 @@ class SEWBlock(nn.Module):
 
         return out
 
+
 class PlainBlock(nn.Module):
     def __init__(self, in_channels, mid_channels):
         super(PlainBlock, self).__init__()
@@ -53,6 +57,7 @@ class PlainBlock(nn.Module):
 
     def forward(self, x: torch.Tensor):
         return self.conv(x)
+
 
 class BasicBlock(nn.Module):
     def __init__(self, in_channels, mid_channels):
@@ -65,7 +70,7 @@ class BasicBlock(nn.Module):
                 nn.BatchNorm2d(in_channels),
             ),
         )
-        self.sn = MultiStepParametricLIFNode(init_tau=2.0, detach_reset=True)
+        self.sn = ParametricLIFNode(init_tau=2.0, detach_reset=True, step_mode='m')
 
     def forward(self, x: torch.Tensor):
         return self.sn(x + self.conv(x))
@@ -94,7 +99,6 @@ class ResNetN(nn.Module):
                     raise NotImplementedError
 
             in_channels = channels
-
 
             if 'num_blocks' in cfg_dict:
                 num_blocks = cfg_dict['num_blocks']
@@ -132,6 +136,7 @@ class ResNetN(nn.Module):
         x = self.conv(x)
         return self.out(x.mean(0))
 
+
 def SEWResNet(connect_f):
     layer_list = [
         {'channels': 32, 'up_kernel_size': 1, 'mid_channels': 32, 'num_blocks': 1, 'block_type': 'sew', 'k_pool': 2},
@@ -145,6 +150,7 @@ def SEWResNet(connect_f):
     num_classes = 11
     return ResNetN(layer_list, num_classes, connect_f)
 
+
 def PlainNet(*args, **kwargs):
     layer_list = [
         {'channels': 32, 'up_kernel_size': 1, 'mid_channels': 32, 'num_blocks': 1, 'block_type': 'plain', 'k_pool': 2},
@@ -157,6 +163,7 @@ def PlainNet(*args, **kwargs):
     ]
     num_classes = 11
     return ResNetN(layer_list, num_classes)
+
 
 def SpikingResNet(*args, **kwargs):
     layer_list = [

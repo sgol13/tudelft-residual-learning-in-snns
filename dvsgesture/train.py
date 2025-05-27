@@ -8,11 +8,12 @@ from torch.utils.tensorboard import SummaryWriter
 import math
 from torch.cuda import amp
 import smodels, utils
-from spikingjelly.clock_driven import functional
+from spikingjelly.activation_based import functional
 from spikingjelly.datasets import dvs128_gesture
 
 _seed_ = 2020
 import random
+
 random.seed(2020)
 
 torch.manual_seed(_seed_)  # use torch.manual_seed() to seed the RNG for all devices (both CPU and CUDA)
@@ -21,7 +22,9 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 import numpy as np
+
 np.random.seed(_seed_)
+
 
 def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, print_freq, scaler=None, T_train=None):
     model.train()
@@ -81,7 +84,6 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, pri
     return metric_logger.loss.global_avg, metric_logger.acc1.global_avg, metric_logger.acc5.global_avg
 
 
-
 def evaluate(model, criterion, data_loader, device, print_freq=100, header='Test:'):
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -106,16 +108,17 @@ def evaluate(model, criterion, data_loader, device, print_freq=100, header='Test
     print(f' * Acc@1 = {acc1}, Acc@5 = {acc5}, loss = {loss}')
     return loss, acc1, acc5
 
+
 def load_data(dataset_dir, distributed, T):
     # Data loading code
     print("Loading data")
 
     st = time.time()
 
-    dataset_train = dvs128_gesture.DVS128Gesture(root=dataset_dir, train=True, data_type='frame', frames_number=T, split_by='number')
-    dataset_test = dvs128_gesture.DVS128Gesture(root=dataset_dir, train=False, data_type='frame', frames_number=T,
+    dataset_train = dvs128_gesture.DVS128Gesture(root=dataset_dir, train=True, data_type='frame', frames_number=T,
                                                  split_by='number')
-
+    dataset_test = dvs128_gesture.DVS128Gesture(root=dataset_dir, train=False, data_type='frame', frames_number=T,
+                                                split_by='number')
 
     print("Took", time.time() - st)
 
@@ -129,11 +132,10 @@ def load_data(dataset_dir, distributed, T):
 
     return dataset_train, dataset_test, train_sampler, test_sampler
 
-def main(args):
 
+def main(args):
     max_test_acc1 = 0.
     test_acc5_at_max_test_acc1 = 0.
-
 
     train_tb_writer = None
     te_tb_writer = None
@@ -165,8 +167,6 @@ def main(args):
     output_dir = os.path.join(output_dir, f'lr{args.lr}')
     if not os.path.exists(output_dir):
         utils.mkdir(output_dir)
-
-
 
     device = torch.device(args.device)
 
@@ -221,7 +221,6 @@ def main(args):
         test_acc5_at_max_test_acc1 = checkpoint['test_acc5_at_max_test_acc1']
 
     if args.test_only:
-
         evaluate(model, criterion, data_loader_test, device=device, header='Test:')
 
         return
@@ -242,7 +241,8 @@ def main(args):
         save_max = False
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_loss, train_acc1, train_acc5 = train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, args.print_freq, scaler, args.T_train)
+        train_loss, train_acc1, train_acc5 = train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,
+                                                             args.print_freq, scaler, args.T_train)
         if utils.is_main_process():
             train_tb_writer.add_scalar('train_loss', train_loss, epoch)
             train_tb_writer.add_scalar('train_acc1', train_acc1, epoch)
@@ -252,17 +252,14 @@ def main(args):
         test_loss, test_acc1, test_acc5 = evaluate(model, criterion, data_loader_test, device=device, header='Test:')
         if te_tb_writer is not None:
             if utils.is_main_process():
-
                 te_tb_writer.add_scalar('test_loss', test_loss, epoch)
                 te_tb_writer.add_scalar('test_acc1', test_acc1, epoch)
                 te_tb_writer.add_scalar('test_acc5', test_acc5, epoch)
-
 
         if max_test_acc1 < test_acc1:
             max_test_acc1 = test_acc1
             test_acc5_at_max_test_acc1 = test_acc5
             save_max = True
-
 
         if output_dir:
 
@@ -284,7 +281,8 @@ def main(args):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
 
-        print('Training time {}'.format(total_time_str), 'max_test_acc1', max_test_acc1, 'test_acc5_at_max_test_acc1', test_acc5_at_max_test_acc1)
+        print('Training time {}'.format(total_time_str), 'max_test_acc1', max_test_acc1, 'test_acc5_at_max_test_acc1',
+              test_acc5_at_max_test_acc1)
         print(output_dir)
     if output_dir:
         utils.save_on_master(
@@ -292,7 +290,6 @@ def main(args):
             os.path.join(output_dir, f'checkpoint_{epoch}.pth'))
 
     return max_test_acc1
-
 
 
 def parse_args():
@@ -337,7 +334,6 @@ def parse_args():
     parser.add_argument('--amp', action='store_true',
                         help='Use AMP training')
 
-
     # distributed training parameters
     parser.add_argument('--world-size', default=1, type=int,
                         help='number of distributed processes')
@@ -354,7 +350,6 @@ def parse_args():
 
     args = parser.parse_args()
     return args
-
 
 
 if __name__ == "__main__":
