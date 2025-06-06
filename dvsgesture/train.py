@@ -136,8 +136,8 @@ def load_data(dataset_dir, distributed, T):
 def main(args):
     set_seed(args.seed)
     if args.wandb:
-        wandb.init(project=args.wandb_project, entity=args.wandb_entity, config=args)
-        wandb.run.name = f"T_{args.T}_seed_{args.seed}"
+        run_name = f"{args.model}_T{args.T}_lr{args.lr}_{'adam' if args.adam else 'sgd'}_seed{args.seed}"
+        wandb.init(project=args.wandb_project, entity=args.wandb_entity, config=args, name=run_name)
         wandb.run.save()
 
     max_test_acc1 = 0.
@@ -341,12 +341,12 @@ def main(args):
     return max_test_acc1
 
 
-def parse_args():
+def parse_args(argv=None):
     import argparse
     parser = argparse.ArgumentParser(description='PyTorch Classification Training')
     parser.add_argument('--model', help='model')
 
-    parser.add_argument('--data-path', help='dataset')
+    parser.add_argument('--data-path', default='data', help='dataset path')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('-b', '--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=90, type=int, metavar='N',
@@ -391,8 +391,7 @@ def parse_args():
     parser.add_argument('--tb', action='store_true',
                         help='Use TensorBoard to record logs')
     parser.add_argument('--T', default=16, type=int, help='simulation steps')
-    parser.add_argument('--adam', action='store_true',
-                        help='Use Adam')
+    parser.add_argument('--adam', action='store_true', help='Use Adam optimizer')
 
     parser.add_argument('--connect_f', type=str, help='element-wise connect function')
     parser.add_argument('--T_train', type=int)
@@ -403,7 +402,7 @@ def parse_args():
     parser.add_argument('--wandb_entity', default=None, type=str, help="wandb entity")
     parser.add_argument('--early-stop', action='store_true', help='Early stop if accuracy is low at epoch 64')
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     return args
 
 

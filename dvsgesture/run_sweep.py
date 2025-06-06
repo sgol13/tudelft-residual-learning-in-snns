@@ -5,61 +5,37 @@ import pandas as pd
 from tabulate import tabulate
 import json
 import sys
+import argparse
+import wandb
+from train import parse_args as train_parse_args
 
-def check_dependencies():
-    """Checks for required packages and provides installation instructions if missing."""
-    try:
-        import pandas
-        import tabulate
-        import yaml
-        import wandb
-    except ImportError as e:
-        print(f"Missing dependency: {e.name}. Please install it.")
-        print("You can usually install missing packages with pip:")
-        if e.name == 'yaml':
-            print("pip install PyYAML")
-        else:
-            print(f"pip install {e.name}")
-        sys.exit(1)
 
 def run_experiment(config, T, seed):
     """Constructs and runs a single experiment command."""
-    fixed_params = config['fixed_parameters']
-    cmd = [
-        'python', 'train.py',
-        '--model', fixed_params['model'],
-        '--connect_f', fixed_params['connect_f'],
-        '--data-path', config['data_path'],
-        '--device', fixed_params['device'],
-        '--batch-size', str(fixed_params['batch_size']),
-        '--epochs', str(fixed_params['epochs']),
-        '--workers', str(fixed_params['workers']),
-        '--lr', str(fixed_params['lr']),
-        '--momentum', str(fixed_params['momentum']),
-        '--weight-decay', str(fixed_params['weight_decay']),
-        '--lr-step-size', str(fixed_params['lr_step_size']),
-        '--lr-gamma', str(fixed_params['lr_gamma']),
-        '--output-dir', config['output_dir'],
-        '--T', str(T),
-        '--seed', str(seed),
-    ]
+    fixed_params = config['fixed_parameters'].copy()
+    fixed_params['T'] = T
+    fixed_params['seed'] = seed
 
-    if fixed_params.get('amp'):
-        cmd.append('--amp')
-    if fixed_params.get('tb'):
-        cmd.append('--tb')
-    
-    cmd.append('--wandb')
-    cmd.extend(['--wandb_project', config['wandb_project']])
-    if config.get('wandb_entity'):
-        cmd.extend(['--wandb_entity', config['wandb_entity']])
-    
-    if fixed_params.get('early_stop'):
-        cmd.append('--early-stop')
+    cmd = [sys.executable, 'train.py']
+
+    # Arguments in train.py that use '_' instead of the default '-'
+    underscore_args = ['connect_f', 'T_train', 'wandb_project', 'wandb_entity']
+
+    for key, value in fixed_params.items():
+        arg_key = key.replace('_', '-')
+        if key in underscore_args:
+            arg_key = key
+
+        if isinstance(value, bool):
+            if value:
+                cmd.append(f'--{arg_key}')
+        elif value is not None:
+            cmd.append(f'--{arg_key}')
+            cmd.append(str(value))
 
     print(f"\nRunning experiment with T={T}, seed={seed}")
     print(f"Command: {' '.join(cmd)}")
-    
+
     process = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(__file__))
     
     if process.returncode != 0:
@@ -92,13 +68,43 @@ def run_experiment(config, T, seed):
 
 def main():
     """Main function to run the experiment sweep."""
-    check_dependencies()
+    wandb.login()
+
+    parser = argparse.ArgumentParser(description="Run a sweep of experiments.")
+    parser.add_argument('--T', type=int, nargs='+', help="Override T values from config.")
+    parser.add_argument('--seed', type=int, nargs='+', help="Override seed values from config.")
+    args, unknown_args = parser.parse_known_args()
     
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
-    
-    if config['data_path'] == "/path/to/your/DVS128Gesture":
+
+    if 'fixed_parameters' not in config:
+        config['fixed_parameters'] = {}
+
+    for key in ['data_path', 'output_dir', 'wandb_project', 'wandb_entity']:
+        if key in config and key not in config['fixed_parameters']:
+            config['fixed_parameters'][key] = config.pop(key)
+
+    default_train_args = train_parse_args([])
+    if 'fixed_parameters' not in config:
+        config['fixed_parameters'] = {}
+
+    # Update fixed_parameters with defaults
+    for key, value in vars(default_train_args).items():
+        if key not in config['fixed_parameters']:
+            config['fixed_parameters'][key] = value
+
+    # Override with command line arguments
+    override_args = train_parse_args(unknown_args)
+    for key, value in vars(override_args).items():
+        # Check if the argument was actually passed by the user
+        arg_with_hyphen = f'--{key.replace("_", "-")}'
+        arg_with_underscore = f'--{key}'
+        if arg_with_hyphen in unknown_args or arg_with_underscore in unknown_args:
+            config['fixed_parameters'][key] = value
+
+    if config['fixed_parameters']['data_path'] == "/path/to/your/DVS128Gesture":
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("!!! PLEASE UPDATE `data_path` in `dvsgesture/config.yaml`  !!!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -106,8 +112,8 @@ def main():
 
     results = []
     
-    T_values = config['parameters']['T']
-    seeds = config['parameters']['seed']
+    T_values = args.T if args.T else config['parameters']['T']
+    seeds = args.seed if args.seed else config['parameters']['seed']
     
     for T in T_values:
         for seed in seeds:
