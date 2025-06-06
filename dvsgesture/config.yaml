@@ -1,0 +1,33 @@
+# Configuration for the DVS Gesture experiment sweep.
+# PLEASE UPDATE the data_path to point to your DVS128Gesture dataset location.
+data_path: "/path/to/your/DVS128Gesture"
+output_dir: "."
+
+# Wandb configuration
+wandb_project: "tudelft-residual-learning-in-snns"
+wandb_entity: null # Replace with your wandb entity if you have one, or it will use your default.
+
+# Parameters to sweep over
+parameters:
+  T: [2, 4, 6, 8, 12, 16]
+  seed: [2020, 2021, 2022]
+
+# Fixed parameters for all runs
+fixed_parameters:
+  model: "SEWResNet"
+  connect_f: "ADD"
+  batch_size: 16
+  epochs: 192
+  lr: 0.1
+  lr_step_size: 64
+  lr_gamma: 0.1
+  # optimizer is SGD, which is default.
+  weight_decay: 0.0 # As requested, no weight decay.
+  amp: True
+  device: "cuda:0"
+  tb: True
+  workers: 4
+  momentum: 0.9
+  early_stop: True
+  # T_train is not specified in the requirements, so it won't be passed.
+  # The default in train.py is None if not provided as argument. 

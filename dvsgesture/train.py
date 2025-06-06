@@ -10,20 +10,19 @@ from torch.cuda import amp
 import smodels, utils
 from spikingjelly.activation_based import functional
 from spikingjelly.datasets import dvs128_gesture
-
-_seed_ = 2020
 import random
-
-random.seed(2020)
-
-torch.manual_seed(_seed_)  # use torch.manual_seed() to seed the RNG for all devices (both CPU and CUDA)
-torch.cuda.manual_seed_all(_seed_)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
 import numpy as np
+import json
+import wandb
 
-np.random.seed(_seed_)
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, print_freq, scaler=None, T_train=None):
@@ -81,7 +80,8 @@ def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, pri
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    return metric_logger.loss.global_avg, metric_logger.acc1.global_avg, metric_logger.acc5.global_avg
+    return metric_logger.loss.global_avg, metric_logger.acc1.global_avg, metric_logger.acc5.global_avg, \
+           metric_logger.meters['img/s'].global_avg
 
 
 def evaluate(model, criterion, data_loader, device, print_freq=100, header='Test:'):
@@ -134,6 +134,12 @@ def load_data(dataset_dir, distributed, T):
 
 
 def main(args):
+    set_seed(args.seed)
+    if args.wandb:
+        wandb.init(project=args.wandb_project, entity=args.wandb_entity, config=args)
+        wandb.run.name = f"T_{args.T}_seed_{args.seed}"
+        wandb.run.save()
+
     max_test_acc1 = 0.
     test_acc5_at_max_test_acc1 = 0.
 
@@ -237,24 +243,41 @@ def main(args):
 
     print("Start training")
     start_time = time.time()
+    imgs_per_s_list = []
     for epoch in range(args.start_epoch, args.epochs):
         save_max = False
         if args.distributed:
             train_sampler.set_epoch(epoch)
-        train_loss, train_acc1, train_acc5 = train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,
-                                                             args.print_freq, scaler, args.T_train)
+        train_loss, train_acc1, train_acc5, imgs_per_s = train_one_epoch(model, criterion, optimizer, data_loader,
+                                                                         device, epoch,
+                                                                         args.print_freq, scaler, args.T_train)
+        imgs_per_s_list.append(imgs_per_s)
         if utils.is_main_process():
-            train_tb_writer.add_scalar('train_loss', train_loss, epoch)
-            train_tb_writer.add_scalar('train_acc1', train_acc1, epoch)
-            train_tb_writer.add_scalar('train_acc5', train_acc5, epoch)
+            if train_tb_writer:
+                train_tb_writer.add_scalar('train_loss', train_loss, epoch)
+                train_tb_writer.add_scalar('train_acc1', train_acc1, epoch)
+                train_tb_writer.add_scalar('train_acc5', train_acc5, epoch)
         lr_scheduler.step()
 
         test_loss, test_acc1, test_acc5 = evaluate(model, criterion, data_loader_test, device=device, header='Test:')
+
+        if args.early_stop and epoch == 64:
+            # Early stop if validation accuracy is more than 10% below 74.4%
+            if test_acc1 < (0.744 * 0.9):
+                print(f"Early stopping at epoch {epoch} due to low accuracy: {test_acc1:.4f} < {0.744 * 0.9:.4f}")
+                break
+
         if te_tb_writer is not None:
             if utils.is_main_process():
                 te_tb_writer.add_scalar('test_loss', test_loss, epoch)
                 te_tb_writer.add_scalar('test_acc1', test_acc1, epoch)
                 te_tb_writer.add_scalar('test_acc5', test_acc5, epoch)
+                if args.wandb:
+                    wandb.log({
+                        "train_loss": train_loss, "train_acc1": train_acc1, "train_acc5": train_acc5,
+                        "test_loss": test_loss, "test_acc1": test_acc1, "test_acc5": test_acc5,
+                        "lr": optimizer.param_groups[0]["lr"]
+                    }, step=epoch)
 
         if max_test_acc1 < test_acc1:
             max_test_acc1 = test_acc1
@@ -281,13 +304,39 @@ def main(args):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
 
-        print('Training time {}'.format(total_time_str), 'max_test_acc1', max_test_acc1, 'test_acc5_at_max_test_acc1',
+        print('Training time {}'.format(total_time_str), 'max_test_acc1', max_test_acc1,
+              'test_acc5_at_max_test_acc1',
               test_acc5_at_max_test_acc1)
         print(output_dir)
-    if output_dir:
+
+    total_time = time.time() - start_time
+    avg_imgs_per_s = np.mean(imgs_per_s_list) if imgs_per_s_list else 0
+
+    if output_dir and 'checkpoint' in locals():
         utils.save_on_master(
             checkpoint,
             os.path.join(output_dir, f'checkpoint_{epoch}.pth'))
+
+    if args.wandb and utils.is_main_process():
+        wandb.log({
+            'max_test_acc1': max_test_acc1,
+            'test_acc5_at_max_test_acc1': test_acc5_at_max_test_acc1,
+            'total_train_time_s': total_time,
+            'avg_imgs_per_s': avg_imgs_per_s,
+        })
+
+    result_dict = {
+        'T': args.T,
+        'seed': args.seed,
+        'acc1': max_test_acc1,
+        'acc5': test_acc5_at_max_test_acc1,
+        'train_time_s': total_time,
+        'imgs_per_s': avg_imgs_per_s,
+    }
+
+    if utils.is_main_process() and not args.test_only:
+        # The runner script will capture this JSON output
+        print(f'\n{json.dumps(result_dict)}')
 
     return max_test_acc1
 
@@ -347,6 +396,12 @@ def parse_args():
 
     parser.add_argument('--connect_f', type=str, help='element-wise connect function')
     parser.add_argument('--T_train', type=int)
+
+    parser.add_argument('--seed', default=2020, type=int, help='random seed for reproducibility')
+    parser.add_argument('--wandb', action='store_true', help="Use wandb to log experiments")
+    parser.add_argument('--wandb_project', default='dvs_gesture_sweeps', type=str, help="wandb project name")
+    parser.add_argument('--wandb_entity', default=None, type=str, help="wandb entity")
+    parser.add_argument('--early-stop', action='store_true', help='Early stop if accuracy is low at epoch 64')
 
     args = parser.parse_args()
     return args
