@@ -5,7 +5,7 @@ output_dir: "."
 
 # Wandb configuration
 wandb_project: "tudelft-residual-learning-in-snns"
-wandb_entity: null # Replace with your wandb entity if you have one, or it will use your default.
+wandb_entity: "tudelft-snn" # Replace with your wandb entity if you have one, or it will use your default.
 
 # Parameters to sweep over
 parameters:
