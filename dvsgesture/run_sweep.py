@@ -1,70 +1,34 @@
 import yaml
-import subprocess
 import os
 import pandas as pd
 from tabulate import tabulate
-import json
 import sys
 import argparse
 import wandb
-from train import parse_args as train_parse_args
+import copy
+from train import run_training, parse_args
 
 
-def run_experiment(config, T, seed):
-    """Constructs and runs a single experiment command."""
-    fixed_params = config['fixed_parameters'].copy()
-    fixed_params['T'] = T
-    fixed_params['seed'] = seed
-
-    cmd = [sys.executable, 'train.py']
-
-    # Arguments in train.py that use '_' instead of the default '-'
-    underscore_args = ['connect_f', 'T_train', 'wandb_project', 'wandb_entity']
-
-    for key, value in fixed_params.items():
-        arg_key = key.replace('_', '-')
-        if key in underscore_args:
-            arg_key = key
-
-        if isinstance(value, bool):
-            if value:
-                cmd.append(f'--{arg_key}')
-        elif value is not None:
-            cmd.append(f'--{arg_key}')
-            cmd.append(str(value))
+def run_experiment(base_args, T, seed):
+    """Constructs and runs a single experiment."""
+    train_args = copy.deepcopy(base_args)
+    
+    # Set sweep parameters
+    train_args.T = T
+    train_args.seed = seed
 
     print(f"\nRunning experiment with T={T}, seed={seed}")
-    print(f"Command: {' '.join(cmd)}")
-
-    process = subprocess.run(cmd, capture_output=True, text=True, cwd=os.path.dirname(__file__))
-    
-    if process.returncode != 0:
-        print(f"Error running experiment for T={T}, seed={seed}")
-        print("Stderr:")
-        print(process.stderr)
-        return None
+    print(f"Arguments: {vars(train_args)}")
 
     try:
-        json_line = None
-        for line in reversed(process.stdout.strip().split('\n')):
-            if line.strip().startswith('{') and line.strip().endswith('}'):
-                json_line = line
-                break
-        
-        if json_line:
-            metrics = json.loads(json_line)
-            return metrics
-        else:
-            print(f"Could not find JSON metrics in output for T={T}, seed={seed}")
-            print("Stdout:")
-            print(process.stdout)
-            return None
-
-    except (IndexError, json.JSONDecodeError) as e:
-        print(f"Error parsing metrics for T={T}, seed={seed}: {e}")
-        print("Stdout:")
-        print(process.stdout)
+        metrics = run_training(train_args)
+        return metrics
+    except Exception as e:
+        print(f"Error running experiment for T={T}, seed={seed}: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return None
+
 
 def main():
     """Main function to run the experiment sweep."""
@@ -86,40 +50,41 @@ def main():
         if key in config and key not in config['fixed_parameters']:
             config['fixed_parameters'][key] = config.pop(key)
 
-    default_train_args = train_parse_args([])
-    if 'fixed_parameters' not in config:
-        config['fixed_parameters'] = {}
-
-    # Update fixed_parameters with defaults
-    for key, value in vars(default_train_args).items():
-        if key not in config['fixed_parameters']:
-            config['fixed_parameters'][key] = value
-
-    # Override with command line arguments
-    override_args = train_parse_args(unknown_args)
+    # Build base arguments
+    # 1. Start with train.py defaults
+    base_args = parse_args([])
+    # 2. Apply fixed parameters from config
+    for key, value in config['fixed_parameters'].items():
+        if hasattr(base_args, key):
+            setattr(base_args, key, value)
+    # 3. Apply command-line overrides
+    override_args = parse_args(unknown_args or [])
     for key, value in vars(override_args).items():
-        # Check if the argument was actually passed by the user
         arg_with_hyphen = f'--{key.replace("_", "-")}'
         arg_with_underscore = f'--{key}'
         if arg_with_hyphen in unknown_args or arg_with_underscore in unknown_args:
-            config['fixed_parameters'][key] = value
+            setattr(base_args, key, value)
 
-    if config['fixed_parameters']['data_path'] == "/path/to/your/DVS128Gesture":
+    if hasattr(base_args, 'data_path') and base_args.data_path == "data" and not os.path.exists("data"):
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         print("!!! PLEASE UPDATE `data_path` in `dvsgesture/config.yaml`  !!!")
+        print("!!! or download the dataset to the `data` directory.     !!!")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        sys.exit(1)
+        # sys.exit(1) # Commenting out to allow running without dataset for testing
 
     results = []
     
     T_values = args.T if args.T else config['parameters']['T']
     seeds = args.seed if args.seed else config['parameters']['seed']
     
-    for T in T_values:
-        for seed in seeds:
-            metrics = run_experiment(config, T, seed)
-            if metrics:
-                results.append(metrics)
+    try:
+        for T in T_values:
+            for seed in seeds:
+                metrics = run_experiment(base_args, T, seed)
+                if metrics:
+                    results.append(metrics)
+    except KeyboardInterrupt:
+        print("\n\nUser interrupted the sweep. Processing results gathered so far.")
 
     if not results:
         print("\nNo results were collected. Exiting.")

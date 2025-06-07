@@ -133,12 +133,13 @@ def load_data(dataset_dir, distributed, T):
     return dataset_train, dataset_test, train_sampler, test_sampler
 
 
-def main(args):
+def run_training(args):
     set_seed(args.seed)
     if args.wandb:
         run_name = f"{args.model}_T{args.T}_lr{args.lr}_{'adam' if args.adam else 'sgd'}_seed{args.seed}"
-        wandb.init(project=args.wandb_project, entity=args.wandb_entity, config=args, name=run_name)
-        wandb.run.save()
+        wandb.init(project=args.wandb_project, entity=args.wandb_entity, config=args, name=run_name, reinit=True)
+        if wandb.run:
+            wandb.run.save()
 
     max_test_acc1 = 0.
     test_acc5_at_max_test_acc1 = 0.
@@ -244,6 +245,7 @@ def main(args):
     print("Start training")
     start_time = time.time()
     imgs_per_s_list = []
+    epoch = 0
     for epoch in range(args.start_epoch, args.epochs):
         save_max = False
         if args.distributed:
@@ -272,7 +274,7 @@ def main(args):
                 te_tb_writer.add_scalar('test_loss', test_loss, epoch)
                 te_tb_writer.add_scalar('test_acc1', test_acc1, epoch)
                 te_tb_writer.add_scalar('test_acc5', test_acc5, epoch)
-                if args.wandb:
+                if args.wandb and wandb.run:
                     wandb.log({
                         "train_loss": train_loss, "train_acc1": train_acc1, "train_acc5": train_acc5,
                         "test_loss": test_loss, "test_acc1": test_acc1, "test_acc5": test_acc5,
@@ -317,13 +319,14 @@ def main(args):
             checkpoint,
             os.path.join(output_dir, f'checkpoint_{epoch}.pth'))
 
-    if args.wandb and utils.is_main_process():
+    if args.wandb and utils.is_main_process() and wandb.run:
         wandb.log({
             'max_test_acc1': max_test_acc1,
             'test_acc5_at_max_test_acc1': test_acc5_at_max_test_acc1,
             'total_train_time_s': total_time,
             'avg_imgs_per_s': avg_imgs_per_s,
         })
+        wandb.finish()
 
     result_dict = {
         'T': args.T,
@@ -334,11 +337,16 @@ def main(args):
         'imgs_per_s': avg_imgs_per_s,
     }
 
-    if utils.is_main_process() and not args.test_only:
-        # The runner script will capture this JSON output
-        print(f'\n{json.dumps(result_dict)}')
+    return result_dict
 
-    return max_test_acc1
+
+def main():
+    args = parse_args()
+    result_dict = run_training(args)
+    if result_dict and utils.is_main_process() and not args.test_only:
+        # The runner script used to capture this JSON output when running as a subprocess.
+        # This is kept for command-line execution of this script.
+        print(f'\n{json.dumps(result_dict)}')
 
 
 def parse_args(argv=None):
@@ -347,7 +355,7 @@ def parse_args(argv=None):
     parser.add_argument('--model', help='model')
 
     parser.add_argument('--data-path', default='data', help='dataset path')
-    parser.add_argument('--device', default='cuda', help='device')
+    parser.add_argument('--device', default='cuda:0', help='device')
     parser.add_argument('-b', '--batch-size', default=16, type=int)
     parser.add_argument('--epochs', default=90, type=int, metavar='N',
                         help='number of total epochs to run')
@@ -407,8 +415,7 @@ def parse_args(argv=None):
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()
 
 '''
 /raid/wfang/datasets/DVS128Gesture
