@@ -10,7 +10,7 @@ wandb_entity: "tudelft-snn" # Replace with your wandb entity if you have one, or
 # Parameters to sweep over
 parameters:
   T: [2, 4, 6, 8, 12, 16]
-  seed: [2020, 2021, 2022]
+  seed: [2024]
 
 # Fixed parameters for all runs
 fixed_parameters:
