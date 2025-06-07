@@ -16,7 +16,7 @@ parameters:
 fixed_parameters:
   model: "SEWResNet"
   connect_f: "ADD"
-  batch_size: 32
+  batch_size: 256
   epochs: 80
   lr: 0.1
   lr_step_size: 30
