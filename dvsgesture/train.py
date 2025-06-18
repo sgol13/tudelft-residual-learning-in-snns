@@ -11,19 +11,12 @@ import smodels, utils
 from spikingjelly.activation_based import functional
 from spikingjelly.datasets import dvs128_gesture
 
-_seed_ = 2020
 import random
 
-random.seed(2020)
-
-torch.manual_seed(_seed_)  # use torch.manual_seed() to seed the RNG for all devices (both CPU and CUDA)
-torch.cuda.manual_seed_all(_seed_)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 import numpy as np
-
-np.random.seed(_seed_)
 
 
 def train_one_epoch(model, criterion, optimizer, data_loader, device, epoch, print_freq, scaler=None, T_train=None):
@@ -347,6 +340,7 @@ def parse_args():
 
     parser.add_argument('--connect_f', type=str, help='element-wise connect function')
     parser.add_argument('--T_train', type=int)
+    parser.add_argument('--seed', default=2020, type=int, help='random seed')
 
     args = parser.parse_args()
     return args
@@ -354,6 +348,14 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+
+    seed = args.seed
+    random.seed(seed)
+
+    torch.manual_seed(seed)  # use torch.manual_seed() to seed the RNG for all devices (both CPU and CUDA)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+
     main(args)
 
 '''
