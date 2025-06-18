@@ -1,0 +1,39 @@
+# Model configuration
+model:
+  name: 'sew'  # Options: 'sew', 'plain', 'basic'
+  connect_f: 'ADD'  # Only used for 'sew' model. Options: 'ADD', 'AND', 'IAND'
+
+# Training configuration
+training:
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  device: 'cuda'
+  num_steps: 16  # Number of time steps for SNN simulation
+
+# Data configuration
+data:
+  sample_rate: 16000
+  duration: 1.0  # seconds
+  num_classes: 35
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  data_dir: 'data/speech_commands'
+  splits:
+    train: 'train'
+    val: 'validation'
+    test: 'test'
+
+# Logging configuration
+logging:
+  log_dir: 'runs/speech_commands'
+  save_dir: 'checkpoints/speech_commands'
+  log_interval: 100  # Log every N batches
+  save_interval: 10  # Save checkpoint every N epochs
+
+# Wandb configuration
+wandb:
+  project: "tudelft-residual-learning-in-snns"
+  entity: "tudelft-snn"  # Replace with your wandb entity if you have one, or it will use your default 
