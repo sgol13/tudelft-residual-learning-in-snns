@@ -53,10 +53,10 @@ class SpeechCommandsDataset(Dataset):
                     "v0.02", 
                     split=split,
                     trust_remote_code=True,
-                    streaming=True  # Use streaming to avoid downloading the entire dataset
+                    # streaming=True  # Use streaming to avoid downloading the entire dataset
                 )
                 # Convert streaming dataset to regular dataset with a subset
-                self.dataset = list(self.dataset.take(500))  # Take only 1000 samples for testing
+                # self.dataset = list(self.dataset.take(500))  # Take only 1000 samples for testing
                 
                 # Print available classes
                 print("\nAvailable classes in the dataset:")

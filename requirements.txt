@@ -5,3 +5,4 @@ wandb
 pandas
 tabulate
 pyyaml
+datasets
