@@ -34,6 +34,9 @@ class SEWBlock(nn.Module):
             conv3x3(mid_channels, in_channels),
         )
 
+        self.in_channgels = in_channels
+        self.mid_channels = mid_channels
+
         # linear layer
         BIAS_INIT = 0.01
         INIT_STD = 0.05
@@ -62,7 +65,7 @@ class SEWBlock(nn.Module):
 
     def forward(self, x: torch.Tensor):
         out = self.conv(x)
-        print(f'SHAPE: {x.shape}, {out.shape}')
+        print(f'SHAPE: {x.shape[3:]}, {out.shape[3:]}, {self.in_channgels}, {self.mid_channels}')
         if self.connect_f == 'ADD':
             out = x + out
         elif self.connect_f == 'AND':
