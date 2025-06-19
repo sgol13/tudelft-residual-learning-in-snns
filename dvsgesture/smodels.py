@@ -61,8 +61,8 @@ class SEWBlock(nn.Module):
         init.normal_(self.gamma_21, mean=0.0, std=INIT_STD)
 
     def forward(self, x: torch.Tensor):
-        print(f'SHAPE: {x.shape}, {out.shape}')
         out = self.conv(x)
+        print(f'SHAPE: {x.shape}, {out.shape}')
         if self.connect_f == 'ADD':
             out = x + out
         elif self.connect_f == 'AND':
