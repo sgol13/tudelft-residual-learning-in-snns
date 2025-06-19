@@ -43,6 +43,8 @@ class SEWBlock(nn.Module):
             out = 1. - (x * out)
         elif self.connect_f == 'IAND':
             out = x * (1. - out)
+        elif self.connect_f == 'ANDI':
+            out = (1. - x) * out
         elif self.connect_f == 'OR':
             out = x + out - x * out
         elif self.connect_f == 'XOR':
@@ -51,7 +53,10 @@ class SEWBlock(nn.Module):
             out = 1. - (x + out - x * out)
         elif self.connect_f == 'XNOR':
             out = 1. - (x * (1. - out) + (1. - x) * out)
-
+        elif self.connect_f == 'IMPL':
+            out = 1 - x + x * out
+        elif self.connect_f == 'RIMPL':
+            out = 1 - out + out * x
         else:
             raise NotImplementedError(self.connect_f)
 
