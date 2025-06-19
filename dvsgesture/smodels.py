@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 from spikingjelly.activation_based.neuron import ParametricLIFNode
 from spikingjelly.activation_based import layer
 
@@ -33,6 +34,33 @@ class SEWBlock(nn.Module):
             conv3x3(mid_channels, in_channels),
         )
 
+        # linear layer
+        BIAS_INIT = 0.01
+        INIT_STD = 0.05
+        self.theta_0 = nn.Parameter(torch.empty(in_channels))
+        self.theta_1 = nn.Parameter(torch.empty(in_channels))
+        self.theta_2 = nn.Parameter(torch.empty(in_channels))
+
+        self.theta_0.data.fill_(BIAS_INIT)
+        init.normal_(self.theta_1, mean=0.0, std=INIT_STD)
+        init.normal_(self.theta_2, mean=0.0, std=INIT_STD)
+
+        # double linear layer
+        self.gamma_00 = nn.Parameter(torch.empty(in_channels))
+        self.gamma_01 = nn.Parameter(torch.empty(in_channels))
+        self.gamma_10 = nn.Parameter(torch.empty(in_channels))
+        self.gamma_11 = nn.Parameter(torch.empty(in_channels))
+        self.gamma_20 = nn.Parameter(torch.empty(in_channels))
+        self.gamma_21 = nn.Parameter(torch.empty(in_channels))
+
+        self.gamma_00.data.fill_(BIAS_INIT)
+        self.gamma_01.data.fill_(BIAS_INIT)
+        init.normal_(self.gamma_10, mean=0.0, std=INIT_STD)
+        init.normal_(self.gamma_11, mean=0.0, std=INIT_STD)
+        init.normal_(self.gamma_12, mean=0.0, std=INIT_STD)
+        init.normal_(self.gamma_20, mean=0.0, std=INIT_STD)
+        init.normal_(self.gamma_21, mean=0.0, std=INIT_STD)
+
     def forward(self, x: torch.Tensor):
         out = self.conv(x)
         if self.connect_f == 'ADD':
@@ -57,6 +85,12 @@ class SEWBlock(nn.Module):
             out = 1 - x + x * out
         elif self.connect_f == 'RIMPL':
             out = 1 - out + out * x
+        elif self.connect_f == 'linear':
+            out = self.theta_0 + self.theta_1 * x + self.theta_2 * out
+        elif self.connect_f == 'linear2':
+            x1 = self.gamma_00 + self.gamma_10 * x + self.gamma_20 * out
+            x2 = self.gamma_01 + self.gamma_11 * x + self.gamma_21 * out
+            out = self.theta_0 + x1 * x + self.theta_2 * x2
         else:
             raise NotImplementedError(self.connect_f)
 
