@@ -179,15 +179,6 @@ def main(args):
     model = smodels.__dict__[args.model](args.connect_f)
     print("Creating model")
 
-    def print_weight(m):
-        if type(m) == smodels.SEWBlock:
-            print(m.theta_0)
-            print(m.theta_1)
-            print(m.theta_2)
-            print()
-
-    model.apply(print_weight)
-
     model.to(device)
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

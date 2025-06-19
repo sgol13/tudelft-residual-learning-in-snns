@@ -67,6 +67,11 @@ class SEWBlock(nn.Module):
         init.normal_(self.gamma_20, mean=1.0, std=INIT_STD)
         init.normal_(self.gamma_21, mean=1.0, std=INIT_STD)
 
+        print(self.theta_0)
+        print(self.theta_1)
+        print(self.theta_2)
+        print()
+
     def forward(self, x: torch.Tensor):
         if self.connect_f in ['linear', 'linear2', 'linear_no_bias', 'linear_right'] and not self.linear_initialized:
             self.init_linear(x.shape[3])
