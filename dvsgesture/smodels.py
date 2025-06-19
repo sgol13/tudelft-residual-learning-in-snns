@@ -57,7 +57,6 @@ class SEWBlock(nn.Module):
         self.gamma_01.data.fill_(BIAS_INIT)
         init.normal_(self.gamma_10, mean=0.0, std=INIT_STD)
         init.normal_(self.gamma_11, mean=0.0, std=INIT_STD)
-        init.normal_(self.gamma_12, mean=0.0, std=INIT_STD)
         init.normal_(self.gamma_20, mean=0.0, std=INIT_STD)
         init.normal_(self.gamma_21, mean=0.0, std=INIT_STD)
 
