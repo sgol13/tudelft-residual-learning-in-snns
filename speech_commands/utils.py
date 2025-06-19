@@ -57,6 +57,7 @@ class SpeechCommandsDataset(Dataset):
                 )
                 # Convert streaming dataset to regular dataset with a subset
                 # self.dataset = list(self.dataset.take(500))  # Take only 1000 samples for testing
+                self.dataset = self.dataset.filter(lambda x: x['label'] in range(8))
                 
                 # Print available classes
                 print("\nAvailable classes in the dataset:")

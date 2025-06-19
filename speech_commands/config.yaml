@@ -1,16 +1,16 @@
 # Model configuration
 model:
   name: 'sew'  # Options: 'sew', 'plain', 'basic'
-  connect_f: 'ADD'  # Only used for 'sew' model. Options: 'ADD', 'AND', 'IAND'
+  connect_f: 'AND'  # Only used for 'sew' model. Options: 'ADD', 'AND', 'IAND'
 
 # Training configuration
 training:
-  batch_size: 128
-  num_epochs: 100
+  batch_size: 32
+  num_epochs: 50
   learning_rate: 0.001
   weight_decay: 0.0001
   device: 'cuda'
-  num_steps: 16  # Number of time steps for SNN simulation
+  num_steps: 8  # Number of time steps for SNN simulation
 
 # Data configuration
 data:
