@@ -284,7 +284,10 @@ def main(args):
 
     def print_weight(m):
         if type(m) == smodels.SEWBlock:
-            print(m.theta_0, m.theta_1, m.theta_2)
+            print(m.theta_0)
+            print(m.theta_1)
+            print(m.theta_2)
+            print()
 
     model.apply(print_weight)
 
