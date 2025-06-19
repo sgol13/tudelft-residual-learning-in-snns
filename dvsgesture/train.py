@@ -237,13 +237,6 @@ def main(args):
         train_loss, train_acc1, train_acc5 = train_one_epoch(model, criterion, optimizer, data_loader, device, epoch,
                                                              args.print_freq, scaler, args.T_train)
 
-        if args.adam:
-            optimizer = torch.optim.Adam(
-                model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        else:
-            optimizer = torch.optim.SGD(
-                model.parameters(), lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
-
         if utils.is_main_process():
             train_tb_writer.add_scalar('train_loss', train_loss, epoch)
             train_tb_writer.add_scalar('train_acc1', train_acc1, epoch)

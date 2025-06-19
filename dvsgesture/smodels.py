@@ -37,35 +37,16 @@ class SEWBlock(nn.Module):
         self.in_channgels = in_channels
         self.mid_channels = mid_channels
 
-        # linear layer
-        self.linear_initialized = False
-
-    def init_linear(self, size):
-        device = torch.device("cuda:0")
         BIAS_INIT = 0.01
         INIT_STD = 0.05
-        self.theta_0 = nn.Parameter(torch.empty(size)).to(device)
-        self.theta_1 = nn.Parameter(torch.empty(size)).to(device)
-        self.theta_2 = nn.Parameter(torch.empty(size)).to(device)
+        size = 128
+        self.theta_0 = nn.Parameter(torch.empty(size))
+        self.theta_1 = nn.Parameter(torch.empty(size))
+        self.theta_2 = nn.Parameter(torch.empty(size))
 
         self.theta_0.data.fill_(BIAS_INIT)
         init.normal_(self.theta_1, mean=1.0, std=INIT_STD)
         init.normal_(self.theta_2, mean=1.0, std=INIT_STD)
-
-        # double linear layer
-        self.gamma_00 = nn.Parameter(torch.empty(size)).to(device)
-        self.gamma_01 = nn.Parameter(torch.empty(size)).to(device)
-        self.gamma_10 = nn.Parameter(torch.empty(size)).to(device)
-        self.gamma_11 = nn.Parameter(torch.empty(size)).to(device)
-        self.gamma_20 = nn.Parameter(torch.empty(size)).to(device)
-        self.gamma_21 = nn.Parameter(torch.empty(size)).to(device)
-
-        self.gamma_00.data.fill_(BIAS_INIT)
-        self.gamma_01.data.fill_(BIAS_INIT)
-        init.normal_(self.gamma_10, mean=1.0, std=INIT_STD)
-        init.normal_(self.gamma_11, mean=1.0, std=INIT_STD)
-        init.normal_(self.gamma_20, mean=1.0, std=INIT_STD)
-        init.normal_(self.gamma_21, mean=1.0, std=INIT_STD)
 
         print(self.theta_0)
         print(self.theta_1)
@@ -73,10 +54,6 @@ class SEWBlock(nn.Module):
         print()
 
     def forward(self, x: torch.Tensor):
-        if self.connect_f in ['linear', 'linear2', 'linear_no_bias', 'linear_right'] and not self.linear_initialized:
-            self.init_linear(x.shape[3])
-            self.linear_initialized = True
-
         out = self.conv(x)
         if self.connect_f == 'ADD':
             out = x + out
@@ -101,20 +78,14 @@ class SEWBlock(nn.Module):
         elif self.connect_f == 'RIMPL':
             out = 1 - out + out * x
         elif self.connect_f == 'linear':
-            out = self.theta_0 + self.theta_1 * x + self.theta_2 * out
+            size = x.shape[-1]
+            out = self.theta_0[:size] + self.theta_1[:size] * x + self.theta_2[:size] * out
         elif self.connect_f == 'linear_no_bias':
-            out = self.theta_1 * x + self.theta_2 * out
+            size = x.shape[-1]
+            out = self.theta_1[:size] * x + self.theta_2[:size] * out
         elif self.connect_f == 'linear_right':
-            out = self.theta_1 * x + out
-        elif self.connect_f == 'linear2':
-            x1 = self.gamma_00 + self.gamma_10 * x + self.gamma_20 * out
-            x2 = self.gamma_01 + self.gamma_11 * x + self.gamma_21 * out
-
-            x1 = nn.functional.relu(x1)
-            x2 = nn.functional.relu(x2)
-
-            out = self.theta_0 + self.theta_1 * x1 + self.theta_2 * x2
-            out = nn.functional.relu(out)
+            size = x.shape[-1]
+            out = self.theta_1[:size] * x + out
         else:
             raise NotImplementedError(self.connect_f)
 
