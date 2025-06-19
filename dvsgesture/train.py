@@ -179,16 +179,6 @@ def main(args):
     model = smodels.__dict__[args.model](args.connect_f)
     print("Creating model")
 
-    def print_weight(m):
-        if type(m) == smodels.SEWBlock:
-            print(m.theta_0, m.theta_1, m.theta_2)
-
-    model.apply(print_weight)
-
-    for block in model.conv:
-        print(type(block), block.__dict__)
-        # print(block.theta_0, block.theta_1, block.theta_2)
-
     model.to(device)
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -292,8 +282,11 @@ def main(args):
             checkpoint,
             os.path.join(output_dir, f'checkpoint_{epoch}.pth'))
 
-    for block in model.conv:
-        print(block.theta_0, block.theta_1, block.theta_2)
+    def print_weight(m):
+        if type(m) == smodels.SEWBlock:
+            print(m.theta_0, m.theta_1, m.theta_2)
+
+    model.apply(print_weight)
 
     return max_test_acc1
 
