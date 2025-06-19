@@ -282,6 +282,10 @@ def main(args):
             checkpoint,
             os.path.join(output_dir, f'checkpoint_{epoch}.pth'))
 
+    print(model.__dict__)
+    for block in model.conv:
+        print(block.theta_0, block.theta_1, block.theta_2)
+
     return max_test_acc1
 
 
