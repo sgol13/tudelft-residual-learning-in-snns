@@ -36,11 +36,22 @@ class SEWBlock(nn.Module):
     def forward(self, x: torch.Tensor):
         out = self.conv(x)
         if self.connect_f == 'ADD':
-            out += x
+            out = x + out
         elif self.connect_f == 'AND':
-            out *= x
+            out = x * out
+        elif self.connect_f == 'NAND':
+            out = 1. - (x * out)
         elif self.connect_f == 'IAND':
             out = x * (1. - out)
+        elif self.connect_f == 'OR':
+            out = x + out - x * out
+        elif self.connect_f == 'XOR':
+            out = x * (1. - out) + (1. - x) * out
+        elif self.connect_f == 'NOR':
+            out = 1. - (x + out - x * out)
+        elif self.connect_f == 'XNOR':
+            out = 1. - (x * (1. - out) + (1. - x) * out)
+
         else:
             raise NotImplementedError(self.connect_f)
 
