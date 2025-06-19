@@ -41,7 +41,7 @@ class SEWBlock(nn.Module):
         self.linear_initialized = False
 
     def init_linear(self, size):
-        device = self.conv[0].conv.weight.device
+        device = self.device
         BIAS_INIT = 0.01
         INIT_STD = 0.05
         self.theta_0 = nn.Parameter(torch.empty(size)).to(device)
