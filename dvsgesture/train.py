@@ -179,6 +179,12 @@ def main(args):
     model = smodels.__dict__[args.model](args.connect_f)
     print("Creating model")
 
+    def print_weight(m):
+        if type(m) == smodels.SEWBlock:
+            print(m.theta_0, m.theta_1, m.theta_2)
+
+    model.apply(print_weight)
+
     for block in model.conv:
         print(type(block), block.__dict__)
         # print(block.theta_0, block.theta_1, block.theta_2)
