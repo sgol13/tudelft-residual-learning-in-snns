@@ -41,23 +41,24 @@ class SEWBlock(nn.Module):
         self.linear_initialized = False
 
     def init_linear(self, size):
+        device = self.conv[0].conv.weight.device
         BIAS_INIT = 0.01
         INIT_STD = 0.05
-        self.theta_0 = nn.Parameter(torch.empty(size))
-        self.theta_1 = nn.Parameter(torch.empty(size))
-        self.theta_2 = nn.Parameter(torch.empty(size))
+        self.theta_0 = nn.Parameter(torch.empty(size)).to(device)
+        self.theta_1 = nn.Parameter(torch.empty(size)).to(device)
+        self.theta_2 = nn.Parameter(torch.empty(size)).to(device)
 
         self.theta_0.data.fill_(BIAS_INIT)
         init.normal_(self.theta_1, mean=0.0, std=INIT_STD)
         init.normal_(self.theta_2, mean=0.0, std=INIT_STD)
 
         # double linear layer
-        self.gamma_00 = nn.Parameter(torch.empty(size))
-        self.gamma_01 = nn.Parameter(torch.empty(size))
-        self.gamma_10 = nn.Parameter(torch.empty(size))
-        self.gamma_11 = nn.Parameter(torch.empty(size))
-        self.gamma_20 = nn.Parameter(torch.empty(size))
-        self.gamma_21 = nn.Parameter(torch.empty(size))
+        self.gamma_00 = nn.Parameter(torch.empty(size)).to(device)
+        self.gamma_01 = nn.Parameter(torch.empty(size)).to(device)
+        self.gamma_10 = nn.Parameter(torch.empty(size)).to(device)
+        self.gamma_11 = nn.Parameter(torch.empty(size)).to(device)
+        self.gamma_20 = nn.Parameter(torch.empty(size)).to(device)
+        self.gamma_21 = nn.Parameter(torch.empty(size)).to(device)
 
         self.gamma_00.data.fill_(BIAS_INIT)
         self.gamma_01.data.fill_(BIAS_INIT)
@@ -72,7 +73,7 @@ class SEWBlock(nn.Module):
             self.linear_initialized = True
 
         out = self.conv(x)
-        print(f'SHAPE: {x.shape[3:]}, {out.shape[3:]}, {self.in_channgels}, {self.mid_channels}')
+        # print(f'SHAPE: {x.shape[3:]}, {out.shape[3:]}, {self.in_channgels}, {self.mid_channels}')
         if self.connect_f == 'ADD':
             out = x + out
         elif self.connect_f == 'AND':
