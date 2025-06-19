@@ -1,0 +1,5 @@
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f linear2 --device cuda:0 --lr-step-size 64 --epoch 1 --T_train 12 --T 16 --data-path ../data/dvsgesture/ --lr 0.001 --seed 0 > linear.text && \
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f linear_no_bias --device cuda:0 --lr-step-size 64 --epoch 1 --T_train 12 --T 16 --data-path ../data/dvsgesture/ --lr 0.001 --seed 0 > linear_no_bias.txt  && \
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f linear_right --device cuda:0 --lr-step-size 64 --epoch 1 --T_train 12 --T 16 --data-path ../data/dvsgesture/ --lr 0.001 --seed 0 > linear_right.txt  && \
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f NAND --device cuda:0 --lr-step-size 64 --epoch 1 --T_train 12 --T 16 --data-path ../data/dvsgesture/ --lr 0.001 --seed 1 > linear_right.txt  && \
+python train.py --tb --amp --output-dir ./logs --model SEWResNet --connect_f AND --device cuda:0 --lr-step-size 64 --epoch 1 --T_train 12 --T 16 --data-path ../data/dvsgesture/ --lr 0.001 --seed 1 > linear_right.txt
