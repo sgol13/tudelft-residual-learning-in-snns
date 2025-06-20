@@ -1,0 +1,39 @@
+# Model configuration
+model:
+  name: 'sew'  # Options: 'sew', 'plain', 'basic'
+  connect_f: 'ADD'  # Options: 'ADD', 'AND', 'IAND'
+
+# Training configuration
+training:
+  batch_size: 16  # Smaller batch size for testing
+  num_epochs: 10   # Few epochs for quick testing
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  num_steps: 4  # Number of time steps for SNN simulation
+  device: 'cpu'  # Use CPU for testing
+
+# Data configuration
+data:
+  sample_rate: 16000
+  duration: 1.0  # seconds
+  num_classes: 35
+  train_split: 0.6
+  val_split: 0.2
+  test_split: 0.2
+  data_dir: 'data/speech_commands'
+  splits:
+    train: 'train'
+    val: 'validation'
+    test: 'test'
+
+# Logging configuration
+logging:
+  log_dir: 'runs/speech_commands_test'
+  save_dir: 'checkpoints/speech_commands_test'
+  log_interval: 10    # More frequent logging for testing
+  save_interval: 1  # Save checkpoint every epoch for testing
+
+# Wandb configuration
+wandb:
+  project: "tudelft-residual-learning-in-snns"
+  entity: "o-m-fron-1-tu-delft"  # Replace with your wandb entity if you have one, or it will use your default 
